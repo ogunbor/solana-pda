@@ -24,6 +24,30 @@ pub mod solana_pda {
 
         Ok(())
     }
+    // end of first step
+
+    // fourth step which is users depositing into the bank(transfer from user's account to our pda account)
+    pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
+        let txn = anchor_lang::solana_program::system_instruction::transfer(
+            &ctx.accounts.user.key(),
+            &ctx.accounts.bank.key(),
+            amount,
+        );
+
+        anchor_lang::solana_program::program::invoke(
+            &txn,
+            &[
+                ctx.accounts.user.to_account_info(),
+                ctx.accounts.bank.to_account_info(),
+            ],
+        )?;
+
+        // Update the bank's balance
+        ctx.accounts.bank.balance += amount;
+
+        Ok(())
+    }
+    // end of fourth step
 }
 
 // second step is the derive account below: seems this is the pda section
@@ -35,6 +59,7 @@ pub struct Create<'info> {
     pub user: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
+// end of second step
 
 // third step is to outline the properties the bank would have: name, balance, owner
 #[account]
@@ -43,3 +68,15 @@ pub struct Bank {
     pub balance: u64,
     pub owner: Pubkey,
 }
+// end of third step
+
+// fifth step: for the deposit function
+#[derive(Accounts)]
+pub struct Deposit<'info> {
+    #[account(mut)]
+    pub bank: Account<'info, Bank>,
+    #[account(mut)]
+    pub user: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+// end of fifth step
