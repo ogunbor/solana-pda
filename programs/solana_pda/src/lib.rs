@@ -48,6 +48,30 @@ pub mod solana_pda {
         Ok(())
     }
     // end of fourth step
+
+    // sixth step: withdraw from the pda storing the deposit to the admin who created the account
+    pub fn withdraw(ctx: Context<Withdraw>, amount: u64) -> Result<()> {
+        let bank = &mut ctx.accounts.bank;
+        let user = &mut ctx.accounts.user;
+
+        // Ensure the caller is the owner of the bank account
+        if bank.owner != *user.key {
+            return Err(ProgramError::IllegalOwner.into());
+        }
+
+        let rent = Rent::get()?.minimum_balance(bank.to_account_info().data_len());
+        // Ensure the bank has sufficient funds
+        if **bank.to_account_info().lamports.borrow() - rent < amount {
+            return Err(ProgramError::InsufficientFunds.into());
+        }
+
+        // Perform the transfer
+        **bank.to_account_info().try_borrow_mut_lamports()? -= amount;
+        **user.to_account_info().try_borrow_mut_lamports()? += amount;
+
+        Ok(())
+    }
+    // end of sixth step
 }
 
 // second step is the derive account below: seems this is the pda section
@@ -80,3 +104,12 @@ pub struct Deposit<'info> {
     pub system_program: Program<'info, System>,
 }
 // end of fifth step
+
+// seventh step: derive macro for the withdraw
+#[derive(Accounts)]
+pub struct Withdraw<'info> {
+    #[account(mut)]
+    pub bank: Account<'info, Bank>,
+    #[account(mut)]
+    pub user: Signer<'info>,
+}
